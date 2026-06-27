@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://restaurant-api.dicoding.dev';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL 
 
 
 /**
