@@ -1,4 +1,5 @@
-const BASE_URL = 'https://restaurant-api.dicoding.dev';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://restaurant-api.dicoding.dev';
+
 
 /**
  * Deterministically enriches a restaurant item from the API with mockup metadata.
@@ -11,10 +12,10 @@ export const mapRestaurantItem = (item, searchedCategory = null) => {
     sum += item.id.charCodeAt(i);
   }
   const price = prices[sum % prices.length];
-  
+
   // Deterministic open status based on ID
   const isOpen = (sum % 2) === 0;
-  
+
   // Category fallback mapping for list view
   const defaultCuisines = ["Italia", "Modern", "Sop", "Bali", "Sunda", "Jawa"];
   let categoryList = [];
@@ -25,10 +26,10 @@ export const mapRestaurantItem = (item, searchedCategory = null) => {
   } else {
     categoryList = [defaultCuisines[sum % defaultCuisines.length]];
   }
-  
+
   // Medium resolution image URL mapping
   const photoUrl = `https://restaurant-api.dicoding.dev/images/medium/${item.pictureId}`;
-  
+
   return {
     ...item,
     price,
@@ -46,21 +47,21 @@ export const fetchRestaurants = async ({ category, search } = {}) => {
     let url = `${BASE_URL}/list`;
     const hasSearch = search && search.trim() !== '';
     const hasCategory = category && category !== 'all' && category.trim() !== '';
-    
+
     if (hasSearch) {
       url = `${BASE_URL}/search?q=${encodeURIComponent(search)}`;
     } else if (hasCategory) {
       url = `${BASE_URL}/search?q=${encodeURIComponent(category)}`;
     }
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`API fetch error: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     const list = (hasSearch || hasCategory) ? (data.restaurants || []) : (data.restaurants || []);
-    
+
     // Map list items to enrich them with category, price, and isOpen
     return list.map(item => mapRestaurantItem(item, hasCategory ? category : null));
   } catch (error) {
@@ -78,20 +79,20 @@ export const fetchRestaurantById = async (id) => {
     if (!response.ok) {
       throw new Error(`API fetch error: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     if (!data.restaurant) {
       return null;
     }
-    
+
     const apiRes = data.restaurant;
-    
+
     // Enrich with deterministic price & open now flags (consistent with main view)
     const enriched = mapRestaurantItem(apiRes);
-    
+
     // For detail page, parse categories and reviews returned directly by the API
     const realCategories = apiRes.categories ? apiRes.categories.map(c => c.name) : enriched.categories;
-    
+
     // Dicoding API avatar mapping - since no review avatars are returned, we use custom UI profiles
     const mockAvatars = [
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
@@ -99,18 +100,18 @@ export const fetchRestaurantById = async (id) => {
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
       "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150"
     ];
-    
-    const mappedReviews = apiRes.customerReviews 
+
+    const mappedReviews = apiRes.customerReviews
       ? apiRes.customerReviews.map((rev, index) => ({
-          id: `rev_${index}`,
-          name: rev.name,
-          rating: 4, // Default review score since Dicoding review payload has no star field
-          text: rev.review,
-          avatar: mockAvatars[index % mockAvatars.length],
-          date: rev.date
-        }))
+        id: `rev_${index}`,
+        name: rev.name,
+        rating: 4, // Default review score since Dicoding review payload has no star field
+        text: rev.review,
+        avatar: mockAvatars[index % mockAvatars.length],
+        date: rev.date
+      }))
       : [];
-      
+
     return {
       ...enriched,
       categories: realCategories,
@@ -136,16 +137,16 @@ export const addRestaurantReview = async ({ id, name, review }) => {
       },
       body: JSON.stringify({ id, name, review }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`API error adding review: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     if (data.error) {
       throw new Error(data.message || 'Error adding review');
     }
-    
+
     // Map the returned customerReviews to match our frontend review structure
     const mockAvatars = [
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
@@ -153,7 +154,7 @@ export const addRestaurantReview = async ({ id, name, review }) => {
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
       "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150"
     ];
-    
+
     return (data.customerReviews || []).map((rev, index) => ({
       id: `rev_${index}_${Date.now()}`,
       name: rev.name,
