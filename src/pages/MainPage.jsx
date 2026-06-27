@@ -7,6 +7,8 @@ import { RefreshCw, ChefHat } from 'lucide-react';
 
 const MainPage = () => {
   // Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [openNow, setOpenNow] = useState(false);
   const [priceRange, setPriceRange] = useState('all');
   const [category, setCategory] = useState('all');
@@ -16,15 +18,29 @@ const MainPage = () => {
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Pagination State
-  const [visibleCount, setVisibleCount] = useState(8);
+  // Pagination State (Show 12 items initially as requested)
+  const [visibleCount, setVisibleCount] = useState(12);
 
-  // Fetch restaurants from "server" when category changes
+  // Debounce search query to prevent excessive API requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Fetch restaurants when category or debouncedSearchQuery changes
   useEffect(() => {
     const loadRestaurants = async () => {
       setIsLoading(true);
       try {
-        const data = await fetchRestaurants({ category });
+        const data = await fetchRestaurants({ 
+          category, 
+          search: debouncedSearchQuery 
+        });
         setRawRestaurants(data);
       } catch (error) {
         console.error("Failed to load restaurants:", error);
@@ -34,7 +50,7 @@ const MainPage = () => {
     };
 
     loadRestaurants();
-  }, [category]);
+  }, [category, debouncedSearchQuery]);
 
   // Apply client-side filters (open now, price range)
   useEffect(() => {
@@ -51,18 +67,19 @@ const MainPage = () => {
     }
 
     setFilteredRestaurants(result);
-    // Reset page pagination when filter changes
-    setVisibleCount(8);
+    // Reset pagination window when filters change
+    setVisibleCount(12);
   }, [rawRestaurants, openNow, priceRange]);
 
   const handleClearAll = () => {
+    setSearchQuery('');
     setOpenNow(false);
     setPriceRange('all');
     setCategory('all');
   };
 
   const handleLoadMore = () => {
-    setVisibleCount(prev => prev + 4);
+    setVisibleCount(prev => prev + 12);
   };
 
   return (
@@ -72,6 +89,8 @@ const MainPage = () => {
 
       {/* Filter controls */}
       <FilterBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
         openNow={openNow}
         setOpenNow={setOpenNow}
         priceRange={priceRange}

@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchRestaurantById } from '../services/api';
-import { ArrowLeft, RefreshCw, MapPin, Plus, Minus, Star } from 'lucide-react';
+import { fetchRestaurantById, addRestaurantReview } from '../services/api';
+import { ArrowLeft, RefreshCw, MapPin, Plus, Minus, Star, Send } from 'lucide-react';
 
 const DetailPage = () => {
   const { id } = useParams();
   const [restaurant, setRestaurant] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Review Form States
+  const [newReviewName, setNewReviewName] = useState('');
+  const [newReviewText, setNewReviewText] = useState('');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSuccessMsg, setReviewSuccessMsg] = useState('');
+  const [reviewErrorMsg, setReviewErrorMsg] = useState('');
 
   useEffect(() => {
     const loadRestaurant = async () => {
@@ -42,12 +50,52 @@ const DetailPage = () => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       if (i <= score) {
-        stars.push(<Star key={i} className="h-4.5 w-4.5 fill-slate-800 text-slate-800" />);
+        stars.push(<Star key={i} className="h-4 w-4 fill-slate-800 text-slate-800" />);
       } else {
-        stars.push(<Star key={i} className="h-4.5 w-4.5 text-slate-200" />);
+        stars.push(<Star key={i} className="h-4 w-4 text-slate-200" />);
       }
     }
     return stars;
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!newReviewName.trim() || !newReviewText.trim()) {
+      setReviewErrorMsg("Please fill in both your name and review text.");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    setReviewErrorMsg('');
+    setReviewSuccessMsg('');
+
+    try {
+      const updatedReviews = await addRestaurantReview({
+        id,
+        name: newReviewName,
+        review: newReviewText
+      });
+
+      setRestaurant(prev => ({
+        ...prev,
+        reviews: updatedReviews
+      }));
+
+      setReviewSuccessMsg("Review posted successfully! Thank you.");
+      setNewReviewName('');
+      setNewReviewText('');
+      setNewReviewRating(5);
+
+      // Hide success message after 4s
+      setTimeout(() => {
+        setReviewSuccessMsg('');
+      }, 4000);
+    } catch (err) {
+      console.error("Failed to post review:", err);
+      setReviewErrorMsg("Failed to add review. Please try again.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   if (isLoading) {
@@ -181,6 +229,98 @@ const DetailPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Write a Review Section */}
+            <div className="mt-12 bg-white border border-border-light rounded-sm p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-neutral-dark mb-2">Share Your Experience</h3>
+              <p className="text-xs text-neutral-light font-light mb-6">Your feedback helps others make better dining decisions. Submit a live review to this restaurant.</p>
+              
+              <form onSubmit={handleReviewSubmit} className="space-y-5">
+                {/* Alert Messages */}
+                {reviewSuccessMsg && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-sm font-light">
+                    {reviewSuccessMsg}
+                  </div>
+                )}
+                {reviewErrorMsg && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-800 text-sm px-4 py-3 rounded-sm font-light">
+                    {reviewErrorMsg}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Reviewer Name */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-dark uppercase tracking-wider block">Your Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe"
+                      value={newReviewName}
+                      onChange={(e) => setNewReviewName(e.target.value)}
+                      disabled={isSubmittingReview}
+                      className="w-full px-3 py-2 bg-slate-50 border border-border-light rounded-xs text-sm text-neutral-dark focus:outline-none focus:ring-1 focus:ring-navy-dark focus:bg-white transition-colors"
+                      required
+                    />
+                  </div>
+
+                  {/* Rating Selector */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-dark uppercase tracking-wider block">Rating (Your Score)</label>
+                    <div className="flex items-center gap-1.5 py-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setNewReviewRating(star)}
+                          disabled={isSubmittingReview}
+                          className="text-2xl focus:outline-none transition-transform hover:scale-110 cursor-pointer"
+                        >
+                          {star <= newReviewRating ? (
+                            <span className="text-amber-500">★</span>
+                          ) : (
+                            <span className="text-slate-300">☆</span>
+                          )}
+                        </button>
+                      ))}
+                      <span className="text-sm font-medium text-neutral-light ml-2">{newReviewRating} out of 5</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Review Content */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-neutral-dark uppercase tracking-wider block">Review Message</label>
+                  <textarea
+                    rows="4"
+                    placeholder="Tell us about the food, service, and dining ambiance..."
+                    value={newReviewText}
+                    onChange={(e) => setNewReviewText(e.target.value)}
+                    disabled={isSubmittingReview}
+                    className="w-full px-3 py-2 bg-slate-50 border border-border-light rounded-xs text-sm text-neutral-dark focus:outline-none focus:ring-1 focus:ring-navy-dark focus:bg-white transition-colors"
+                    required
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-navy-dark hover:bg-navy-hover disabled:bg-slate-300 text-white text-xs font-semibold uppercase tracking-wider transition-colors rounded-xs cursor-pointer"
+                  >
+                    {isSubmittingReview ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" /> Post Review
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
 

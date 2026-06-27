@@ -1,7 +1,9 @@
 import React from 'react';
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw, Search } from 'lucide-react';
 
 const FilterBar = ({
+  searchQuery,
+  setSearchQuery,
   openNow,
   setOpenNow,
   priceRange,
@@ -20,13 +22,27 @@ const FilterBar = ({
     { label: '$$$$', value: '$$$$' }
   ];
 
-  const hasActiveFilters = openNow || priceRange !== 'all' || category !== 'all';
+  const hasActiveFilters = openNow || priceRange !== 'all' || category !== 'all' || (searchQuery && searchQuery.trim() !== '');
 
   return (
-    <div className="py-5 border-b border-border-light flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="py-5 border-b border-border-light flex flex-col lg:flex-row lg:items-center justify-between gap-4">
       {/* Filters Group */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-light">
         <span className="font-normal text-neutral-dark whitespace-nowrap">Filter By:</span>
+
+        {/* Search Input */}
+        <div className="relative flex items-center w-full sm:w-auto">
+          <input
+            type="text"
+            placeholder="Search restaurants..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-56 pl-9 pr-3 py-1.5 bg-white border border-border-light rounded-full text-neutral-dark placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-dark text-sm transition-all"
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-slate-400" />
+          </div>
+        </div>
 
         {/* Open Now Checkbox/Radio */}
         <label className="flex items-center gap-2 cursor-pointer py-1 px-3 rounded-full hover:bg-slate-100 transition-colors border border-border-light">
