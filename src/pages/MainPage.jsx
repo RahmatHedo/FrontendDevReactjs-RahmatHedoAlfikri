@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import FilterBar from '../components/FilterBar';
 import RestaurantCard from '../components/RestaurantCard';
-import { fetchRestaurants } from '../services/api';
-import { allCategories } from '../data/restaurants';
+import { fetchRestaurants, allCategories } from '../services/api';
 import { RefreshCw, ChefHat } from 'lucide-react';
 
 const MainPage = () => {

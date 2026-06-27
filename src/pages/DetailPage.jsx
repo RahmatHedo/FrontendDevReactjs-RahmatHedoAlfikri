@@ -74,7 +74,7 @@ const DetailPage = () => {
     );
   }
 
-  const { name, rating, price, isOpen, categories, photos, reviews } = restaurant;
+  const { name, rating, price, isOpen, categories, photos, reviews, address, city } = restaurant;
 
   return (
     <div className="container mx-auto px-4 max-w-5xl pb-20 pt-6">
@@ -236,7 +236,7 @@ const DetailPage = () => {
 
             <div className="mt-3 text-xs text-neutral-light">
               <p className="font-medium text-neutral-dark mb-1">Address:</p>
-              <p className="font-light">123 Culinary Boulevard, District {id}, Suite 100</p>
+              <p className="font-light">{address}, {city}</p>
               <p className="font-light mt-1">Latitude: -6.2146 | Longitude: 106.8451</p>
             </div>
           </div>

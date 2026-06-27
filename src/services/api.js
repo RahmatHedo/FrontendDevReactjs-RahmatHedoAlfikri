@@ -1,42 +1,132 @@
-import { restaurants } from '../data/restaurants';
+const BASE_URL = 'https://restaurant-api.dicoding.dev';
 
 /**
- * Simulates a server-side API call to query restaurants by category/cuisine.
- * Returns a Promise that resolves with the filtered restaurants after a realistic network delay.
- * 
- * @param {Object} params
- * @param {string} [params.category] - Server-side category search filter.
- * @returns {Promise<Array>} List of restaurants matching the category.
+ * Deterministically enriches a restaurant item from the API with mockup metadata.
  */
-export const fetchRestaurants = ({ category } = {}) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      let result = [...restaurants];
-      
-      // Server-side category filter
-      if (category && category !== "all" && category.trim() !== "") {
-        const lowerCategory = category.toLowerCase();
-        result = result.filter(r => 
-          r.categories.some(c => c.toLowerCase() === lowerCategory)
-        );
-      }
-      
-      resolve(result);
-    }, 600); // 600ms simulated network delay
-  });
+export const mapRestaurantItem = (item, searchedCategory = null) => {
+  // Deterministic price level based on ID
+  const prices = ["$", "$$", "$$$", "$$$$"];
+  let sum = 0;
+  for (let i = 0; i < item.id.length; i++) {
+    sum += item.id.charCodeAt(i);
+  }
+  const price = prices[sum % prices.length];
+  
+  // Deterministic open status based on ID
+  const isOpen = (sum % 2) === 0;
+  
+  // Category fallback mapping for list view
+  const defaultCuisines = ["Italia", "Modern", "Sop", "Bali", "Sunda", "Jawa"];
+  let categoryList = [];
+  if (searchedCategory && searchedCategory !== 'all' && searchedCategory.trim() !== '') {
+    // Standardize category capitalisation to match filter selection
+    const formatted = searchedCategory.charAt(0).toUpperCase() + searchedCategory.slice(1).toLowerCase();
+    categoryList = [formatted];
+  } else {
+    categoryList = [defaultCuisines[sum % defaultCuisines.length]];
+  }
+  
+  // Medium resolution image URL mapping
+  const photoUrl = `https://restaurant-api.dicoding.dev/images/medium/${item.pictureId}`;
+  
+  return {
+    ...item,
+    price,
+    isOpen,
+    categories: categoryList,
+    photos: [photoUrl]
+  };
 };
 
 /**
- * Simulates fetching a single restaurant by its ID.
- * 
- * @param {string} id - Restaurant ID.
- * @returns {Promise<Object|null>} The restaurant object or null if not found.
+ * Fetches the list of restaurants, optionally searching/filtering by category.
  */
-export const fetchRestaurantById = (id) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const restaurant = restaurants.find(r => r.id === id);
-      resolve(restaurant || null);
-    }, 300); // 300ms simulated network delay
-  });
+export const fetchRestaurants = async ({ category } = {}) => {
+  try {
+    let url = `${BASE_URL}/list`;
+    const isSearching = category && category !== 'all' && category.trim() !== '';
+    
+    if (isSearching) {
+      url = `${BASE_URL}/search?q=${encodeURIComponent(category)}`;
+    }
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API fetch error: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const list = isSearching ? (data.restaurants || []) : (data.restaurants || []);
+    
+    // Map list items to enrich them with category, price, and isOpen
+    return list.map(item => mapRestaurantItem(item, isSearching ? category : null));
+  } catch (error) {
+    console.error("fetchRestaurants failed:", error);
+    throw error;
+  }
 };
+
+/**
+ * Fetches detail of a specific restaurant.
+ */
+export const fetchRestaurantById = async (id) => {
+  try {
+    const response = await fetch(`${BASE_URL}/detail/${id}`);
+    if (!response.ok) {
+      throw new Error(`API fetch error: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.restaurant) {
+      return null;
+    }
+    
+    const apiRes = data.restaurant;
+    
+    // Enrich with deterministic price & open now flags (consistent with main view)
+    const enriched = mapRestaurantItem(apiRes);
+    
+    // For detail page, parse categories and reviews returned directly by the API
+    const realCategories = apiRes.categories ? apiRes.categories.map(c => c.name) : enriched.categories;
+    
+    // Dicoding API avatar mapping - since no review avatars are returned, we use custom UI profiles
+    const mockAvatars = [
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150"
+    ];
+    
+    const mappedReviews = apiRes.customerReviews 
+      ? apiRes.customerReviews.map((rev, index) => ({
+          id: `rev_${index}`,
+          name: rev.name,
+          rating: 4, // Default review score since Dicoding review payload has no star field
+          text: rev.review,
+          avatar: mockAvatars[index % mockAvatars.length],
+          date: rev.date
+        }))
+      : [];
+      
+    return {
+      ...enriched,
+      categories: realCategories,
+      reviews: mappedReviews,
+      address: apiRes.address || '123 Culinary St',
+      city: apiRes.city
+    };
+  } catch (error) {
+    console.error("fetchRestaurantById failed:", error);
+    throw error;
+  }
+};
+
+export const allCategories = [
+  "Italia",
+  "Modern",
+  "Sop",
+  "Bali",
+  "Sunda",
+  "Jawa"
+];
+
